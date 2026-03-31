@@ -4,9 +4,9 @@ const app = express();
 
 app.use(express.json());
 
-// Variáveis de ambiente (Railway irá configurar)
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "botinstagram123seguro";
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 
 // ====================== VERIFICAÇÃO ======================
 app.get('/webhook', (req, res) => {
@@ -52,8 +52,8 @@ app.post('/webhook', async (req, res) => {
 
               console.log(`📩 Mensagem de ${senderId}: ${text}`);
 
-              // Resposta automática
-              await sendMessage(senderId, `Olá! Recebi sua mensagem: "${text}" 👋\nEstou funcionando via bot!`);
+              const resposta = await perguntarDeepSeek(text);
+              await sendMessage(senderId, resposta);
             }
           }
         }
@@ -66,6 +66,31 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(200);
   }
 });
+
+async function perguntarDeepSeek(mensagem) {
+  try {
+    const response = await axios.post(
+      'https://api.deepseek.com/chat/completions',
+      {
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: 'Você é um assistente de atendimento ao cliente via Instagram. Responda de forma simpática, clara e objetiva. Máximo 200 caracteres.' },
+          { role: 'user', content: mensagem }
+        ]
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data.choices[0].message.content;
+  } catch (err) {
+    console.error("❌ Erro no DeepSeek:", err.response?.data || err.message);
+    return "Olá! No momento estou com dificuldades técnicas. Tente novamente em instantes.";
+  }
+}
 
 async function sendMessage(recipientId, text) {
   try {
