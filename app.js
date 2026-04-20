@@ -8,7 +8,11 @@ const VERIFY_TOKEN   = process.env.VERIFY_TOKEN   || 'botinstagram123seguro';
 const ACCESS_TOKEN   = process.env.ACCESS_TOKEN;
 const DEEPSEEK_KEY   = process.env.DEEPSEEK_API_KEY;
 const IG_USER_ID     = process.env.IG_USER_ID     || '34788431294134082';
+const IG_USERNAME    = process.env.IG_USERNAME    || 'menosansiedade.site';
 const IG_API         = 'https://graph.instagram.com/v21.0';
+
+// IDs de comentários já respondidos (evita loop)
+const repliedComments = new Set();
 
 const BOT_PERSONA = process.env.BOT_PERSONA ||
   `Você é uma assistente humanizada de uma conta do Instagram chamada @menosasiedade. Responda de forma natural, simpática e breve (máximo 3 linhas). Use linguagem informal e acolhedora. Nunca mencione que é uma IA. Se não souber a resposta, diga que vai verificar e retornar em breve.`;
@@ -145,9 +149,16 @@ app.post('/webhook', async (req, res) => {
       const text      = val.text;
 
       if (!commentId || !text) continue;
-      if (fromId === IG_USER_ID) continue; // ignorar próprios comentários
+      // Ignorar próprios comentários (por ID, username e já respondidos)
+      if (fromId === IG_USER_ID) continue;
+      if (val.from?.username === IG_USERNAME) continue;
+      if (repliedComments.has(commentId)) continue;
 
-      console.log(`💬 Comentário de ${fromId}: ${text}`);
+      repliedComments.add(commentId);
+      // Limpar set após 1000 entradas para não vazar memória
+      if (repliedComments.size > 1000) repliedComments.clear();
+
+      console.log(`💬 Comentário de ${val.from?.username || fromId}: ${text}`);
       try {
         const reply = await askDeepSeek(`comment_${fromId}`, text);
         console.log(`💬 Resposta: ${reply}`);
