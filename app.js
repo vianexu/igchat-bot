@@ -149,6 +149,8 @@ app.post('/webhook', async (req, res) => {
       const text      = val.text;
 
       if (!commentId || !text) continue;
+      // Só responder comentários raiz — replies têm parent_id e causam loop
+      if (val.parent_id) continue;
       // Ignorar próprios comentários (por ID, username e já respondidos)
       if (fromId === IG_USER_ID) continue;
       if (val.from?.username === IG_USERNAME) continue;
